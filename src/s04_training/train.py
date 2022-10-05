@@ -14,78 +14,26 @@ from src.s01_data import datasets
 from src.s03_modelling import models
 
 
-# def train(model, data, config):
-#     # Initialize logging
-#     output_dir = os.path.join(constants.ROOT, rf"models\run_{time.strftime('%Y%m%d-%H%M%S')}")
-#     writer = SummaryWriter(output_dir)
-#     config.to_file(os.path.join(output_dir, "config.json"))
-#     writer.add_text(tag="config", text_string=config.as_dict())
-#
-#     # Initialize model
-#     model.cuda()
-#     model.train()
-#
-#     # Initialize optimizer and loss
-#     optimizer = torch.optim.SGD(model.parameters(), lr=config.learning_rate, momentum=config.momentum)
-#     cross_entropy_loss = torch.nn.CrossEntropyLoss()
-#
-#     # Initialize data loader
-#     train_loader = DataLoader(data, config.batch_size)
-#
-#     # Train
-#     for epoch in range(config.num_epochs):
-#         for batch_idx, (data, target) in enumerate(tqdm(train_loader, desc=f"Epoch {epoch + 1}/{config.num_epochs}")):
-#             # Send data to GPU
-#             data_gpu = data.to(torch.device("cuda:0"))
-#             target_gpu = target.to(torch.device("cuda:0"))
-#
-#             # Reset optimizer
-#             optimizer.zero_grad()
-#
-#             # Calculate loss and update weights accordingly
-#             output = model(data_gpu)
-#             loss = cross_entropy_loss(output, target_gpu)
-#             loss.backward()
-#             optimizer.step()
-#
-#             # Log to tensorboard
-#             writer.add_scalar("Loss/train", loss.item(), (batch_idx + epoch * len(train_loader)))
-#             writer.add_scalar("Accuracy/train", 0, (batch_idx + epoch * len(train_loader)))
-#
-#         # Save snapshot after each epoch?
-#         # torch.save({
-#         #     'epoch': epoch,
-#         #     'model_state_dict': model.state_dict(),
-#         #     'optimizer_state_dict': optimizer.state_dict(),
-#         #     'loss': loss}, PATH)
-#
-#     # Save model
-#     torch.save(model.state_dict(), os.path.join(output_dir, "model.pth"))
-#
-#     # Save best model only
-#     # todo
-
-
 def train(writer, model, train_loader, epoch, loss_function, optimizer):
     model.train()
     train_loss = 0
     for batch_idx, (data, target) in enumerate(tqdm(train_loader)):
         # Send data to GPU
-        data_gpu = data.to(torch.device("cuda:0"))
-        target_gpu = target.to(torch.device("cuda:0"))
+        data = data.to(torch.device("cuda:0"))
+        target = target.to(torch.device("cuda:0"))
 
         # Reset optimizer
         optimizer.zero_grad()
 
         # Calculate loss and update weights accordingly
-        output = model(data_gpu)
-        loss = loss_function(output, target_gpu)
+        output = model(data)
+        loss = loss_function(output, target)
         loss.backward()
         optimizer.step()
 
         # Calculate accuracy
         acc_function = torchmetrics.Accuracy().to(torch.device("cuda:0"))
-        acc = acc_function(output, target_gpu)
+        acc = acc_function(output, target)
 
         # Log to tensorboard
         writer.add_scalar("Loss/Train", loss.item(), (batch_idx + epoch * len(train_loader)))
@@ -105,16 +53,16 @@ def validate(writer, model, val_loader, epoch, loss_function):
     with torch.no_grad():
         for batch_idx, (data, target) in enumerate(tqdm(val_loader)):
             # Send data to GPU
-            data_gpu = data.to(torch.device("cuda:0"))
-            target_gpu = target.to(torch.device("cuda:0"))
+            data = data.to(torch.device("cuda:0"))
+            target = target.to(torch.device("cuda:0"))
 
             # Calculate loss
-            output = model(data_gpu)
-            loss = loss_function(output, target_gpu)
+            output = model(data)
+            loss = loss_function(output, target)
 
             # Calculate accuracy
             acc_function = torchmetrics.Accuracy().to(torch.device("cuda:0"))
-            acc = acc_function(output, target_gpu)
+            acc = acc_function(output, target)
 
             # Log to tensorboard
             writer.add_scalar("Loss/Validation", loss.item(), (batch_idx + epoch * len(val_loader)))
@@ -147,7 +95,8 @@ def k_fold_cross_validation(model, data, config):
         print(f"==========Fold-{fold}==========")
 
         # Initialize logging
-        writer = SummaryWriter(os.path.join(output_dir, f"fold_{fold}"))
+        fold_dir = os.path.join(output_dir, f"fold_{fold}")
+        writer = SummaryWriter(fold_dir)
         writer.add_text(tag="config", text_string=config.as_dict())
 
         # Initialize data loader
@@ -158,12 +107,29 @@ def k_fold_cross_validation(model, data, config):
 
         # Reset model
         model.apply(models.reset_weights)
+        best_val_loss = 1000000
 
         # Train and validate
         for epoch in range(1, config.num_epochs + 1):
             print(f"----------Epoch-{epoch}----------")
             train_loss = train(writer, model, train_loader, epoch, cross_entropy_loss, optimizer)
             val_loss = validate(writer, model, val_loader, epoch, cross_entropy_loss)
+
+            # Track the best performance, and save the model's state
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                model_path = os.path.join(fold_dir, "best_model.pth")
+                torch.save({"epoch": epoch,
+                            "model_state_dict": model.state_dict(),
+                            "optimizer_state_dict": optimizer.state_dict(),
+                            "loss": val_loss},
+                           model_path)
+
+        # Save last model too
+        model_path = os.path.join(fold_dir, "last_model.pth")
+        torch.save({"model_state_dict": model.state_dict(),
+                    "optimizer_state_dict": optimizer.state_dict()},
+                   model_path)
 
 
 if __name__ == "__main__":
@@ -173,7 +139,7 @@ if __name__ == "__main__":
     # Initialize config
     train_config = configs.Config(
         num_epochs=10,
-        batch_size=1024,
+        batch_size=8192,
         learning_rate=0.01,
         momentum=0.5,
         k_folds=2
