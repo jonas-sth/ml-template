@@ -9,6 +9,7 @@ class Config:
     batch_size: int
     learning_rate: float
     momentum: float
+    k_folds: int
 
     @classmethod
     def from_file(cls, file_path):
