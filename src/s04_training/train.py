@@ -5,6 +5,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
+import torchmetrics
 from sklearn.model_selection import KFold
 from tqdm import tqdm
 
@@ -82,9 +83,13 @@ def train(writer, model, train_loader, epoch, loss_function, optimizer):
         loss.backward()
         optimizer.step()
 
+        # Calculate accuracy
+        acc_function = torchmetrics.Accuracy().to(torch.device("cuda:0"))
+        acc = acc_function(output, target_gpu)
+
         # Log to tensorboard
-        writer.add_scalar("Batch Loss/Train", loss.item(), (batch_idx + epoch * len(train_loader)))
-        # writer.add_scalar("Batch Accuracy/train", 0, (batch_idx + epoch * len(train_loader)))
+        writer.add_scalar("Loss/Train", loss.item(), (batch_idx + epoch * len(train_loader)))
+        writer.add_scalar("Accuracy/Train", acc.item(), (batch_idx + epoch * len(train_loader)))
 
         # Sum up loss
         train_loss += loss.item()
@@ -107,9 +112,13 @@ def validate(writer, model, val_loader, epoch, loss_function):
             output = model(data_gpu)
             loss = loss_function(output, target_gpu)
 
+            # Calculate accuracy
+            acc_function = torchmetrics.Accuracy().to(torch.device("cuda:0"))
+            acc = acc_function(output, target_gpu)
+
             # Log to tensorboard
-            writer.add_scalar("Batch Loss/Validation", loss.item(), (batch_idx + epoch * len(val_loader)))
-            # writer.add_scalar("Batch Accuracy/Validation", 0, (batch_idx + epoch * len(val_loader)))
+            writer.add_scalar("Loss/Validation", loss.item(), (batch_idx + epoch * len(val_loader)))
+            writer.add_scalar("Accuracy/Validation", acc.item(), (batch_idx + epoch * len(val_loader)))
 
             # Sum up loss
             val_loss += loss.item()
