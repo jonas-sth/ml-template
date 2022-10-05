@@ -128,11 +128,6 @@ def validate(writer, model, val_loader, epoch, loss_function):
     return avg_val_loss
 
 
-def reset_weights(m):
-    if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
-        m.reset_parameters()
-
-
 def k_fold_cross_validation(model, data, config):
     # Initialize logging
     output_dir = os.path.join(constants.ROOT, rf"models\run_{time.strftime('%Y%m%d-%H%M%S')}")
@@ -162,7 +157,7 @@ def k_fold_cross_validation(model, data, config):
         val_loader = torch.utils.data.DataLoader(data, batch_size=config.batch_size, sampler=val_subset)
 
         # Reset model
-        model.apply(reset_weights)
+        model.apply(models.reset_weights)
 
         # Train and validate
         for epoch in range(1, config.num_epochs + 1):
