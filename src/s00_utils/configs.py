@@ -40,4 +40,4 @@ class Config:
             json.dump(config_dict, json_file)
 
     def as_dict(self):
-        return json.dumps(dataclasses.asdict(self), indent=2)
+        return dataclasses.asdict(self)

@@ -1,3 +1,4 @@
+import json
 import os
 import time
 
@@ -75,6 +76,9 @@ def k_fold_cross_validation(model, data, config):
     # Initialize logging
     output_dir = os.path.join(constants.ROOT, rf"models\run_{time.strftime('%Y%m%d-%H%M%S')}")
     config.to_file(os.path.join(output_dir, "config.json"))
+    summary_dir = os.path.join(output_dir, f"summary")
+    summary_writer = SummaryWriter(summary_dir)
+    summary_writer.add_text(tag="Config", text_string=json.dumps(config.as_dict()))
 
     # Initialize model
     model.cuda()
@@ -92,8 +96,7 @@ def k_fold_cross_validation(model, data, config):
 
         # Initialize logging
         fold_dir = os.path.join(output_dir, f"fold_{fold}")
-        writer = SummaryWriter(fold_dir)
-        writer.add_text(tag="config", text_string=config.as_dict())
+        fold_writer = SummaryWriter(fold_dir)
 
         # Initialize data loader
         train_subset = torch.utils.data.SubsetRandomSampler(train_idx)
@@ -108,8 +111,8 @@ def k_fold_cross_validation(model, data, config):
         # Train and validate
         for epoch in range(1, config.num_epochs + 1):
             print(f"----------Epoch-{epoch}----------")
-            train(writer, model, train_loader, epoch, cross_entropy_loss, optimizer)
-            val_loss, val_acc = validate(writer, model, val_loader, epoch, cross_entropy_loss)
+            train(fold_writer, model, train_loader, epoch, cross_entropy_loss, optimizer)
+            val_loss, val_acc = validate(fold_writer, model, val_loader, epoch, cross_entropy_loss)
 
             # Track the best performance, and save the model's state
             if val_acc > best_val_acc:
@@ -128,9 +131,18 @@ def k_fold_cross_validation(model, data, config):
         torch.save({"model_state_dict": model.state_dict(),
                     "optimizer_state_dict": optimizer.state_dict()},
                    model_path)
+
+        # Close logging of this fold
+        fold_writer.close()
         
-    # Report the summary
-    print(f"Average score over {config.num_folds} folds: {np.mean(scores_per_fold)}")
+    # Report the result
+    result = {
+        "Average Accuracy": np.mean(scores_per_fold),
+        "Accuracy per fold": scores_per_fold,
+        "Number of folds": config.num_folds
+    }
+    summary_writer.add_text(tag="Result", text_string=json.dumps(result))
+    summary_writer.close()
 
 
 if __name__ == "__main__":
