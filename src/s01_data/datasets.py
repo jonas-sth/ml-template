@@ -1,3 +1,4 @@
+import json
 import os
 
 import cv2
@@ -14,11 +15,10 @@ class CustomImageDataset(Dataset):
     Expects the label.csv to contain a file_name and label for each image,
     where the image is stored at image_dir/file_name.
     """
-    def __init__(self, image_dir, label_path, image_transform=None, label_transform=None):
-        self.label_path = label_path
+    def __init__(self, image_dir, label_path, transform=None):
         self.image_dir = image_dir
-        self.image_transform = image_transform
-        self.label_transform = label_transform
+        self.label_path = label_path
+        self.transform = transform
 
         self.image_labels = pd.read_csv(label_path)
 
@@ -29,18 +29,23 @@ class CustomImageDataset(Dataset):
         image_path = os.path.join(self.image_dir, self.image_labels.iloc[idx, 0])
         image = cv2.imread(image_path)
         label = self.image_labels.iloc[idx, 1]
-        if self.image_transform:
-            image = self.image_transform(image)
-        if self.label_transform:
-            label = self.label_transform(label)
+        if self.transform:
+            image = self.transform(image)
         return image, label
+
+
+class CustomJsonEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, CustomImageDataset):
+            return [obj.image_dir, obj.label_path, str(obj.transform)]
+        return json.JSONEncoder.default(self, obj)
 
 
 # Define custom datasets
 MNIST_Dataset = CustomImageDataset(
     image_dir=os.path.join(constants.ROOT, r"data\d01_raw\mnist\train"),
     label_path=os.path.join(constants.ROOT, r"data\d01_raw\mnist\train\labels.csv"),
-    image_transform=transforms.Compose([
+    transform=transforms.Compose([
         transforms.ToTensor(),
         transforms.Grayscale(),
         transforms.Normalize(0.5, 0.2),

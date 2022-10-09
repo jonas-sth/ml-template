@@ -1,6 +1,5 @@
 import json
 import os
-import time
 
 import numpy as np
 import torch
@@ -72,13 +71,12 @@ def validate(writer, model, val_loader, epoch, loss_function):
     return avg_val_loss, avg_val_acc
 
 
-def k_fold_cross_validation(model, data, config):
+def k_fold_cross_validation(model, config):
     # Initialize logging
-    output_dir = os.path.join(constants.ROOT, rf"models\run_{time.strftime('%Y%m%d-%H%M%S')}")
-    config.to_file(os.path.join(output_dir, "config.json"))
-    summary_dir = os.path.join(output_dir, f"summary")
+    config.to_file()
+    summary_dir = os.path.join(config.output_dir, "summary")
     summary_writer = SummaryWriter(summary_dir)
-    summary_writer.add_text(tag="Config", text_string=json.dumps(config.as_dict()))
+    summary_writer.add_text(tag="Config", text_string=json.dumps(config.as_dict(), cls=datasets.CustomJsonEncoder))
 
     # Initialize model
     model.cuda()
@@ -91,18 +89,18 @@ def k_fold_cross_validation(model, data, config):
     k_fold = KFold(n_splits=config.num_folds, shuffle=True)
     scores_per_fold = []
 
-    for fold, (train_idx, val_idx) in enumerate(k_fold.split(data)):
+    for fold, (train_idx, val_idx) in enumerate(k_fold.split(config.data)):
         print(f"==========Fold-{fold}==========")
 
         # Initialize logging
-        fold_dir = os.path.join(output_dir, f"fold_{fold}")
+        fold_dir = os.path.join(config.output_dir, f"fold_{fold}")
         fold_writer = SummaryWriter(fold_dir)
 
         # Initialize data loader
         train_subset = torch.utils.data.SubsetRandomSampler(train_idx)
         val_subset = torch.utils.data.SubsetRandomSampler(val_idx)
-        train_loader = torch.utils.data.DataLoader(data, batch_size=config.batch_size, sampler=train_subset)
-        val_loader = torch.utils.data.DataLoader(data, batch_size=config.batch_size, sampler=val_subset)
+        train_loader = torch.utils.data.DataLoader(config.data, batch_size=config.batch_size, sampler=train_subset)
+        val_loader = torch.utils.data.DataLoader(config.data, batch_size=config.batch_size, sampler=val_subset)
 
         # Reset model and scores
         model.apply(models.reset_weights)
@@ -146,6 +144,9 @@ def k_fold_cross_validation(model, data, config):
 
 
 if __name__ == "__main__":
+    # Set output location
+    output_dir = os.path.join(constants.ROOT, "models", "my_test")
+
     # Initialize model
     train_model = models.SimpleNet()
 
@@ -158,8 +159,10 @@ if __name__ == "__main__":
         batch_size=1024,
         learning_rate=0.01,
         momentum=0.5,
-        num_folds=2
+        num_folds=2,
+        data=train_data,
+        output_dir=output_dir,
     )
 
     # Start training
-    k_fold_cross_validation(train_model, train_data, train_config)
+    k_fold_cross_validation(train_model, train_config)
