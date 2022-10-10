@@ -34,13 +34,6 @@ class CustomImageDataset(Dataset):
         return image, label
 
 
-class CustomJsonEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, CustomImageDataset):
-            return [obj.image_dir, obj.label_path, str(obj.transform)]
-        return json.JSONEncoder.default(self, obj)
-
-
 # Define custom datasets
 MNIST_Dataset = CustomImageDataset(
     image_dir=os.path.join(constants.ROOT, r"data\d01_raw\mnist\train"),

@@ -14,12 +14,12 @@ from src.s01_data import datasets
 from src.s03_modelling import models
 
 
-def train(writer, model, train_loader, epoch, loss_function, optimizer):
+def train(writer, model, device, train_loader, epoch, loss_function, optimizer):
     model.train()
     for batch_idx, (data, target) in enumerate(tqdm(train_loader)):
         # Send data to GPU
-        data = data.to(torch.device("cuda:0"))
-        target = target.to(torch.device("cuda:0"))
+        data = data.to(device)
+        target = target.to(device)
 
         # Reset optimizer
         optimizer.zero_grad()
@@ -31,7 +31,7 @@ def train(writer, model, train_loader, epoch, loss_function, optimizer):
         optimizer.step()
 
         # Calculate accuracy
-        acc_function = torchmetrics.Accuracy().to(torch.device("cuda:0"))
+        acc_function = torchmetrics.Accuracy().to(device)
         acc = acc_function(output, target)
 
         # Log to tensorboard
@@ -39,22 +39,22 @@ def train(writer, model, train_loader, epoch, loss_function, optimizer):
         writer.add_scalar("Accuracy/Train", acc.item(), (batch_idx + epoch * len(train_loader)))
 
 
-def validate(writer, model, val_loader, epoch, loss_function):
+def validate(writer, model, device, val_loader, epoch, loss_function):
     model.eval()
     val_loss = 0
     val_acc = 0
     with torch.no_grad():
         for batch_idx, (data, target) in enumerate(tqdm(val_loader)):
             # Send data to GPU
-            data = data.to(torch.device("cuda:0"))
-            target = target.to(torch.device("cuda:0"))
+            data = data.to(device)
+            target = target.to(device)
 
             # Calculate loss
             output = model(data)
             loss = loss_function(output, target)
 
             # Calculate accuracy
-            acc_function = torchmetrics.Accuracy().to(torch.device("cuda:0"))
+            acc_function = torchmetrics.Accuracy().to(device)
             acc = acc_function(output, target)
 
             # Log to tensorboard
@@ -76,10 +76,10 @@ def k_fold_cross_validation(model, config):
     config.to_file()
     summary_dir = os.path.join(config.output_dir, "summary")
     summary_writer = SummaryWriter(summary_dir)
-    summary_writer.add_text(tag="Config", text_string=json.dumps(config.as_dict(), cls=datasets.CustomJsonEncoder))
+    summary_writer.add_text(tag="Config", text_string=config.as_dict())
 
     # Initialize model
-    model.cuda()
+    model.to(config.device)
 
     # Initialize optimizer and loss
     optimizer = torch.optim.SGD(model.parameters(), lr=config.learning_rate, momentum=config.momentum)
@@ -109,8 +109,8 @@ def k_fold_cross_validation(model, config):
         # Train and validate
         for epoch in range(1, config.num_epochs + 1):
             print(f"----------Epoch-{epoch}----------")
-            train(fold_writer, model, train_loader, epoch, cross_entropy_loss, optimizer)
-            val_loss, val_acc = validate(fold_writer, model, val_loader, epoch, cross_entropy_loss)
+            train(fold_writer, model, config.device, train_loader, epoch, cross_entropy_loss, optimizer)
+            val_loss, val_acc = validate(fold_writer, model, config.device, val_loader, epoch, cross_entropy_loss)
 
             # Track the best performance, and save the model's state
             if val_acc > best_val_acc:
@@ -160,6 +160,7 @@ if __name__ == "__main__":
         learning_rate=0.01,
         momentum=0.5,
         num_folds=2,
+        device=torch.device("cpu"),
         data=train_data,
         output_dir=output_dir,
     )

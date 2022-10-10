@@ -16,6 +16,7 @@ class Config:
     learning_rate: float
     momentum: float
     num_folds: int
+    device: torch.device
     data: datasets.CustomImageDataset
     output_dir: str = os.path.join(constants.ROOT, rf"models\run_{time.strftime('%Y%m%d-%H%M%S')}")
 
@@ -51,21 +52,26 @@ class Config:
         # Transform the config to a dictionary
         config_dict = dataclasses.asdict(self)
 
-        # Process the dataset information
-        config_dict.pop("data")
-        config_dict["image_dir"] = self.data.image_dir
-        config_dict["label_path"] = self.data.label_path
+        # Save the image transformation separately
         if self.data.transform is not None:
             # Save transformation
             transform_path = os.path.join(self.output_dir, "transform.pt")
             torch.save(self.data.transform, transform_path)
-            config_dict["transform"] = str(self.data.transform)
             config_dict["transform_path"] = transform_path
 
         # Save the dictionary to a json file
         config_path = os.path.join(self.output_dir, "config.json")
         with open(config_path, "w") as json_file:
-            json.dump(config_dict, json_file)
+            json.dump(config_dict, json_file, cls=CustomJsonEncoder)
 
     def as_dict(self):
-        return dataclasses.asdict(self)
+        return json.dumps(dataclasses.asdict(self), cls=CustomJsonEncoder)
+
+
+class CustomJsonEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, datasets.CustomImageDataset):
+            return [obj.image_dir, obj.label_path, str(obj.transform)]
+        if isinstance(obj, torch.device):
+            return obj.type
+        return json.JSONEncoder.default(self, obj)
