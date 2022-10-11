@@ -1,5 +1,6 @@
 import json
 import os
+from time import sleep
 
 import numpy as np
 import torch
@@ -16,7 +17,7 @@ from src.s03_modelling import models
 
 def train(writer, model, device, train_loader, epoch, loss_function, optimizer):
     model.train()
-    for batch_idx, (data, target) in enumerate(tqdm(train_loader)):
+    for batch_idx, (data, target) in enumerate(tqdm(train_loader, desc="Training")):
         # Send data to GPU
         data = data.to(device)
         target = target.to(device)
@@ -44,7 +45,7 @@ def validate(writer, model, device, val_loader, epoch, loss_function):
     val_loss = 0
     val_acc = 0
     with torch.no_grad():
-        for batch_idx, (data, target) in enumerate(tqdm(val_loader)):
+        for batch_idx, (data, target) in enumerate(tqdm(val_loader, desc="Validating")):
             # Send data to GPU
             data = data.to(device)
             target = target.to(device)
@@ -90,7 +91,9 @@ def k_fold_cross_validation(model, config):
     scores_per_fold = []
 
     for fold, (train_idx, val_idx) in enumerate(k_fold.split(config.data)):
+        sleep(0.25)
         print(f"==========Fold-{fold}==========")
+        sleep(0.25)
 
         # Initialize logging
         fold_dir = os.path.join(config.output_dir, f"fold_{fold}")
@@ -108,7 +111,10 @@ def k_fold_cross_validation(model, config):
 
         # Train and validate
         for epoch in range(1, config.num_epochs + 1):
-            print(f"----------Epoch-{epoch}----------")
+            sleep(0.25)
+            print(f"Epoch {epoch}:")
+            sleep(0.25)
+
             train(fold_writer, model, config.device, train_loader, epoch, cross_entropy_loss, optimizer)
             val_loss, val_acc = validate(fold_writer, model, config.device, val_loader, epoch, cross_entropy_loss)
 
@@ -156,10 +162,10 @@ if __name__ == "__main__":
     # Initialize config
     train_config = configs.Config(
         num_epochs=4,
-        batch_size=1024,
+        batch_size=32,
         learning_rate=0.01,
         momentum=0.5,
-        num_folds=2,
+        num_folds=10,
         device=torch.device("cpu"),
         data=train_data,
         output_dir=output_dir,
