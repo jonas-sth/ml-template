@@ -1,4 +1,3 @@
-import json
 import os
 from time import sleep
 
@@ -15,24 +14,24 @@ from src.s01_data import datasets
 from src.s03_modelling import models
 
 
-def train(writer, model, device, train_loader, epoch, loss_function, optimizer):
+def train(writer, model, train_loader, epoch, optimizer, config):
     model.train()
     for batch_idx, (data, target) in enumerate(tqdm(train_loader, desc="Training")):
         # Send data to GPU
-        data = data.to(device)
-        target = target.to(device)
+        data = data.to(config.device)
+        target = target.to(config.device)
 
         # Reset optimizer
         optimizer.zero_grad()
 
         # Calculate loss and update weights accordingly
         output = model(data)
-        loss = loss_function(output, target)
+        loss = config.loss_function(output, target)
         loss.backward()
         optimizer.step()
 
         # Calculate accuracy
-        acc_function = torchmetrics.Accuracy().to(device)
+        acc_function = config.accuracy_function.to(config.device)
         acc = acc_function(output, target)
 
         # Log to tensorboard
@@ -40,22 +39,22 @@ def train(writer, model, device, train_loader, epoch, loss_function, optimizer):
         writer.add_scalar("Accuracy/Train", acc.item(), (batch_idx + epoch * len(train_loader)))
 
 
-def validate(writer, model, device, val_loader, epoch, loss_function):
+def validate(writer, model, val_loader, epoch, config):
     model.eval()
     val_loss = 0
     val_acc = 0
     with torch.no_grad():
         for batch_idx, (data, target) in enumerate(tqdm(val_loader, desc="Validating")):
             # Send data to GPU
-            data = data.to(device)
-            target = target.to(device)
+            data = data.to(config.device)
+            target = target.to(config.device)
 
             # Calculate loss
             output = model(data)
-            loss = loss_function(output, target)
+            loss = config.loss_function(output, target)
 
             # Calculate accuracy
-            acc_function = torchmetrics.Accuracy().to(device)
+            acc_function = config.accuracy_function.to(config.device)
             acc = acc_function(output, target)
 
             # Log to tensorboard
@@ -82,9 +81,8 @@ def k_fold_cross_validation(model, config):
     # Initialize model
     model.to(config.device)
 
-    # Initialize optimizer and loss
-    optimizer = torch.optim.SGD(model.parameters(), lr=config.learning_rate, momentum=config.momentum)
-    cross_entropy_loss = torch.nn.CrossEntropyLoss()
+    # Initialize optimizer
+    optimizer = config.optimizer(model.parameters(), lr=config.learning_rate, momentum=config.momentum)
 
     # Initialize folds and scores
     k_fold = KFold(n_splits=config.num_folds, shuffle=True)
@@ -115,8 +113,8 @@ def k_fold_cross_validation(model, config):
             print(f"Epoch {epoch}:")
             sleep(0.25)
 
-            train(fold_writer, model, config.device, train_loader, epoch, cross_entropy_loss, optimizer)
-            val_loss, val_acc = validate(fold_writer, model, config.device, val_loader, epoch, cross_entropy_loss)
+            train(fold_writer, model, train_loader, epoch, optimizer, config)
+            val_loss, val_acc = validate(fold_writer, model, val_loader, epoch, config)
 
             # Track the best performance, and save the model's state
             if val_acc > best_val_acc:
@@ -138,38 +136,37 @@ def k_fold_cross_validation(model, config):
 
         # Close logging of this fold
         fold_writer.close()
-        
+
     # Report the result
-    result = {
-        "Average Accuracy": np.mean(scores_per_fold),
-        "Accuracy per fold": scores_per_fold,
-        "Number of folds": config.num_folds
-    }
-    summary_writer.add_text(tag="Result", text_string=json.dumps(result))
+    result = f"| Parameter        | Value                          |  \n" \
+             f"| ---------------- | ------------------------------ |  \n" \
+             f"| Average Accuracy | {np.mean(scores_per_fold):.5f} |  \n" \
+             f"| Number of Folds  | {config.num_folds}             |  \n"
+
+    for fold in range(config.num_folds):
+        result += f"| Accuracy of Fold {fold} | {scores_per_fold[fold]:.5f} |  \n"
+
+    summary_writer.add_text(tag="Result", text_string=result)
     summary_writer.close()
 
 
 if __name__ == "__main__":
-    # Set output location
-    output_dir = os.path.join(constants.ROOT, "models", "my_test")
-
     # Initialize model
     train_model = models.SimpleNet()
 
-    # Initialize data
-    train_data = datasets.MNIST_Dataset
-
     # Initialize config
     train_config = configs.Config(
-        num_epochs=4,
+        num_epochs=20,
         batch_size=32,
         learning_rate=0.01,
         momentum=0.5,
         num_folds=10,
         device=torch.device("cpu"),
-        data=train_data,
-        output_dir=output_dir,
+        data=datasets.MNIST_Dataset,
+        loss_function=torch.nn.CrossEntropyLoss(),
+        accuracy_function=torchmetrics.Accuracy(),
+        optimizer=torch.optim.SGD,
+        output_dir=os.path.join(constants.ROOT, r"models\my_test"),
     )
-
     # Start training
     k_fold_cross_validation(train_model, train_config)

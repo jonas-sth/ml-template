@@ -2,8 +2,10 @@ import os
 import json
 import dataclasses
 import time
+from typing import Callable
 
 import torch
+import torchmetrics
 
 from src.s00_utils import constants
 from src.s01_data import datasets
@@ -18,6 +20,9 @@ class Config:
     num_folds: int
     device: torch.device
     data: datasets.CustomImageDataset
+    loss_function: Callable
+    accuracy_function: Callable
+    optimizer: Callable
     output_dir: str = os.path.join(constants.ROOT, rf"models\run_{time.strftime('%Y%m%d-%H%M%S')}")
 
     @classmethod
@@ -32,14 +37,24 @@ class Config:
             # Process the dataset information
             image_dir = config_dict.pop("image_dir")
             label_path = config_dict.pop("label_path")
-            transform_path = config_dict.pop("transform_path")
-            transform = torch.load(transform_path)
+            transform_path = config_dict.pop("transform_path", None)
+            transform = torch.load(transform_path) if transform_path is not None else None
             data = datasets.CustomImageDataset(image_dir, label_path, transform)
             config_dict["data"] = data
 
             # Process the device information
             device = config_dict.pop("device")
             config_dict["device"] = torch.device(device)
+
+            # Process the callable methods
+            loss_function_path = config_dict.pop("loss_function_path")
+            config_dict["loss_function"] = torch.load(loss_function_path)
+
+            accuracy_function_path = config_dict.pop("accuracy_function_path")
+            config_dict["accuracy_function"] = torch.load(accuracy_function_path)
+
+            optimizer_path = config_dict.pop("optimizer_path")
+            config_dict["optimizer"] = torch.load(optimizer_path)
 
             # Create the config and return it
             return cls(**config_dict)
@@ -61,6 +76,7 @@ class Config:
         # Parse all parameters
         for key, value in config_dict.items():
             if isinstance(value, datasets.CustomImageDataset):
+                # Process the dataset information and save the transform method via torch
                 parsed_dict["image_dir"] = value.image_dir
                 parsed_dict["label_path"] = value.label_path
                 if value.transform is not None:
@@ -68,7 +84,13 @@ class Config:
                     torch.save(value.transform, transform_path)
                     parsed_dict["transform_path"] = transform_path
             elif isinstance(value, torch.device):
+                # Process the device information
                 parsed_dict[key] = value.type
+            elif callable(value):
+                # Process all callable methods by saving them via torch
+                output_path = os.path.join(self.output_dir, f"{key}.pt")
+                torch.save(value, output_path)
+                parsed_dict[f"{key}_path"] = output_path
             else:
                 parsed_dict[key] = value
 
@@ -111,12 +133,19 @@ if __name__ == '__main__':
         num_folds=10,
         device=torch.device("cpu"),
         data=datasets.MNIST_Dataset,
+        loss_function=torch.nn.CrossEntropyLoss,
+        accuracy_function=torchmetrics.Accuracy,
+        optimizer=torch.optim.SGD,
         output_dir="test",
     )
-    #
+
+    print(test_config.loss_function)
+
     test_config.to_file()
 
     new_config = Config.from_file("test/config.json")
+
+    print(new_config.loss_function)
 
     print(new_config)
     print(test_config)
