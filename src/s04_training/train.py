@@ -77,7 +77,7 @@ def k_fold_cross_validation(model, config):
     config.to_file()
     summary_dir = os.path.join(config.output_dir, "summary")
     summary_writer = SummaryWriter(summary_dir)
-    summary_writer.add_text(tag="Config", text_string=config.as_dict())
+    summary_writer.add_text(tag="Config", text_string=config.as_table())
 
     # Initialize model
     model.to(config.device)
