@@ -25,38 +25,33 @@ class Config:
         config = torch.load(file_path)
         return config
 
-    def to_file(self, output_dir):
+    def to_file(self, dir_path):
         """
-        Saves this config object in the given output directory via torch.
+        Saves this config object in the given directory via torch.
         """
         # Create necessary directories
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+        if not os.path.exists(dir_path):
+            os.makedirs(dir_path)
 
         # Save this config object via torch
-        output_path = os.path.join(output_dir, "config.pt")
+        output_path = os.path.join(dir_path, "config.pt")
         torch.save(self, output_path)
 
-    def as_table(self):
+    def to_tensorboard(self, writer) -> None:
         """
-        Creates a Markdown table presenting the config parameters.
-        Used to display in tensorboard.
+        Writes the config as formatted Markdown text to the given tensorboard writer.
         """
-        # Transform the config to a dictionary
-        config_dict = dataclasses.asdict(self)
+        writer.add_text(tag="Runner", text_string=_markdown(str(self.runner)))
+        writer.add_text(tag="Dataset", text_string=_markdown(str(self.data)))
+        writer.add_text(tag="Model", text_string=_markdown(str(self.model)))
+        writer.add_text(tag="Optimizer", text_string=_markdown(str(self.optimizer)))
+        writer.add_text(tag="Loss Function", text_string=_markdown(str(self.loss_function)))
+        writer.add_text(tag="Accuracy Function", text_string=_markdown(str(self.accuracy_function)))
 
-        # Initialize Markdown table
-        text = "| Parameter | Value |  \n" \
-               "| --------- | ----- |  \n"
 
-        # Parse all parameters
-        for key, value in config_dict.items():
-            if isinstance(value, datasets.CustomImageDataset):
-                text += f"| image_dir | {value.image_dir} |  \n"
-                text += f"| label_path | {value.label_path} |  \n"
-                transform_string = str(value.transform).replace("\n", "<br />&nbsp;&nbsp;")
-                text += f"| transform | {transform_string} |  \n"
-            else:
-                text += f"| {key} | {value} |  \n"
-
-        return text
+def _markdown(string: str):
+    """
+    Formats linebreaks and indentation to Markdown format.
+    """
+    formatted_string = string.replace(" ", "&nbsp;&nbsp;").replace("\n", "<br />")
+    return formatted_string

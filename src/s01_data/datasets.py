@@ -28,3 +28,15 @@ class CustomImageDataset(Dataset):
         if self.transform:
             image = self.transform(image)
         return image, label
+
+    def __repr__(self):
+        if self.transform is not None:
+            formatted_transform = str(self.transform).replace("\t", "  ")[:-1] + "  )"
+        else:
+            formatted_transform = "None"
+
+        return f"{self.__class__.__name__}(\n" \
+               f"  image_dir: {self.image_dir}\n" \
+               f"  label_path: {self.label_path}\n" \
+               f"  transform: {formatted_transform}\n" \
+               f")"

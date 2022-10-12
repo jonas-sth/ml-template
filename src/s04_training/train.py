@@ -87,10 +87,10 @@ def validate(writer: torch.utils.tensorboard.writer.SummaryWriter,
 
 def k_fold_cross_validation(config: configs.Config, dir_path: str) -> None:
     # Initialize logging
-    config.to_file(dir_path)
     summary_dir = os.path.join(dir_path, "summary")
     summary_writer = SummaryWriter(summary_dir)
-    # summary_writer.add_text(tag="Config", text_string=config.as_table())
+    config.to_tensorboard(summary_writer)
+    config.to_file(dir_path)
 
     # Move model to device
     config.model.to(config.runner.device)
@@ -169,7 +169,7 @@ def create_config():
     # Initialize runner
     runner = runners.CustomKFoldRunner(num_folds=5,
                                        num_epochs=20,
-                                       batch_size=32,
+                                       batch_size=64,
                                        device=torch.device("cpu")
                                        )
 
@@ -186,7 +186,7 @@ def create_config():
     model = models.CustomConvNet()  # TODO: add dropout parameter, weight init and activation function
 
     # Initialize optimizer
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.01, momentum=0.001)
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.02, momentum=0.001)
 
     # Initialize loss function
     loss_function = torch.nn.CrossEntropyLoss()
@@ -208,10 +208,13 @@ def create_config():
 
 if __name__ == "__main__":
     # Create config
-    new_config = create_config()
+    # new_config = create_config()
+    loaded_config = configs.Config.from_file(
+        r"C:\Users\E8J0G0K\Documents\Repos\ml-template\models\testing\config.pt"
+    )
 
     # Set output directory
-    output_dir = os.path.join(constants.ROOT, r"models\new_config")
+    output_dir = os.path.join(constants.ROOT, r"models\testing2")
 
     # Start training
-    k_fold_cross_validation(new_config, output_dir)
+    k_fold_cross_validation(loaded_config, output_dir)
