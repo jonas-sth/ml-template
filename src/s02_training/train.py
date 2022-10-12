@@ -5,19 +5,15 @@ from time import sleep
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
-import torchmetrics
+from torch.utils import tensorboard
 from sklearn.model_selection import KFold
-from torchvision.transforms import transforms
 from tqdm import tqdm
 
-from src.s00_utils import configs, constants
-from src.s01_data import datasets
-from src.s03_modelling import models
-from src.s04_training import runners
+from src.s00_utils import constants
+from src.s02_training import configs
 
 
-def train(writer: torch.utils.tensorboard.writer.SummaryWriter,
+def train(writer: tensorboard.writer.SummaryWriter,
           train_loader: torch.utils.data.dataloader.DataLoader,
           epoch: int,
           config: configs.Config) -> None:
@@ -48,7 +44,7 @@ def train(writer: torch.utils.tensorboard.writer.SummaryWriter,
         writer.add_scalar("Accuracy/Train", acc.item(), (batch_idx + epoch * len(train_loader)))
 
 
-def validate(writer: torch.utils.tensorboard.writer.SummaryWriter,
+def validate(writer: tensorboard.writer.SummaryWriter,
              val_loader: torch.utils.data.dataloader.DataLoader,
              epoch: int,
              config: configs.Config) -> (float, float):
@@ -89,7 +85,7 @@ def validate(writer: torch.utils.tensorboard.writer.SummaryWriter,
 def k_fold_cross_validation(config: configs.Config, dir_path: str) -> None:
     # Initialize logging
     summary_dir = os.path.join(dir_path, "summary")
-    summary_writer = SummaryWriter(summary_dir)
+    summary_writer = tensorboard.SummaryWriter(summary_dir)
     config.to_tensorboard(summary_writer)
     config.to_file(dir_path)
 
@@ -105,14 +101,10 @@ def k_fold_cross_validation(config: configs.Config, dir_path: str) -> None:
     k_fold = KFold(n_splits=config.runner.num_folds, shuffle=True)
     scores_per_fold = []
 
-    for fold, (train_idx, val_idx) in enumerate(k_fold.split(config.data)):
-        sleep(0.25)
-        print(f"==========Fold-{fold}==========")
-        sleep(0.25)
-
+    for fold, (train_idx, val_idx) in enumerate(k_fold.split(config.data), start=1):
         # Initialize logging of fold
         fold_dir = os.path.join(dir_path, f"fold_{fold}")
-        fold_writer = SummaryWriter(fold_dir)
+        fold_writer = tensorboard.SummaryWriter(fold_dir)
 
         # Initialize data loader
         train_subset = torch.utils.data.SubsetRandomSampler(train_idx)
@@ -124,14 +116,14 @@ def k_fold_cross_validation(config: configs.Config, dir_path: str) -> None:
                                                  batch_size=config.runner.batch_size,
                                                  sampler=val_subset)
 
-        # Reset model and scores
-        config.model.apply(models.reset_weights)
+        # Reset model weights and scores
+        config.model.apply(config.weight_init)
         best_val_acc = 0
 
         # Train and validate
         for epoch in range(1, config.runner.num_epochs + 1):
             sleep(0.25)
-            print(f"Epoch {epoch}:")
+            print(f"Fold {fold}/{config.runner.num_folds}, Epoch {epoch}/{config.runner.num_epochs}:")
             sleep(0.25)
 
             train(fold_writer, train_loader, epoch, config)
@@ -165,71 +157,27 @@ def k_fold_cross_validation(config: configs.Config, dir_path: str) -> None:
              f"| Number of Folds  | {config.runner.num_folds}             |  \n"
 
     for fold in range(config.runner.num_folds):
-        result += f"| Accuracy of Fold {fold} | {scores_per_fold[fold]:.5f} |  \n"
+        result += f"| Accuracy of Fold {fold} | {scores_per_fold[fold-1]:.5f} |  \n"
 
     summary_writer.add_text(tag="Result", text_string=result)
     summary_writer.close()
 
 
-def create_config():
-    # Initialize runner
-    runner = runners.CustomKFoldRunner(num_folds=5,
-                                       num_epochs=20,
-                                       batch_size=64,
-                                       seed=777,
-                                       device=torch.device("cpu")
-                                       )
-
-    # Initialize data
-    data = datasets.CustomImageDataset(image_dir=os.path.join(constants.ROOT, r"data\d01_raw\mnist\train"),
-                                       label_path=os.path.join(constants.ROOT, r"data\d01_raw\mnist\train\labels.csv"),
-                                       transform=transforms.Compose([transforms.ToTensor(),
-                                                                     transforms.Grayscale(),
-                                                                     transforms.Normalize(0.5, 0.2)]
-                                                                    )
-                                       )
-
-    # Initialize model
-    model = models.CustomConvNet()  # TODO: add dropout parameter, weight init and activation function
-
-    # Initialize optimizer
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.02, momentum=0.001)
-
-    # Initialize loss function
-    loss_function = torch.nn.CrossEntropyLoss()
-
-    # Initialize accuracy function
-    accuracy_function = torchmetrics.Accuracy()
-
-    # Combine into one config
-    config = configs.Config(runner=runner,
-                            data=data,
-                            model=model,
-                            optimizer=optimizer,
-                            loss_function=loss_function,
-                            accuracy_function=accuracy_function
-                            )
-
-    return config
-
-
 if __name__ == "__main__":
-    # Create config
-    new_config = create_config()
+    # Create config for first run
+    config_a = configs.create_config()
 
     # Set output directory
-    output_dir = os.path.join(constants.ROOT, r"models\testing")
+    output_a = os.path.join(constants.ROOT, r"models\run_a")
 
     # Start training
-    k_fold_cross_validation(new_config, output_dir)
+    k_fold_cross_validation(config_a, output_a)
 
     # Load config from previous run
-    loaded_config = configs.Config.from_file(
-        r"C:\Users\E8J0G0K\Documents\Repos\ml-template\models\testing\config.pt"
-    )
+    config_b = configs.load_config(r"C:\Users\E8J0G0K\Documents\Repos\ml-template\models\run_a\config.pt")
 
     # Set new output directory
-    output_dir = os.path.join(constants.ROOT, r"models\testing-reloaded")
+    output_b = os.path.join(constants.ROOT, r"models\run_b")
 
     # Start training
-    k_fold_cross_validation(loaded_config, output_dir)
+    k_fold_cross_validation(config_b, output_b)
