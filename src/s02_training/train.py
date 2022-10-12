@@ -1,5 +1,6 @@
 import os
 import random
+import shutil
 from time import sleep
 
 import numpy as np
@@ -82,7 +83,11 @@ def validate(writer: tensorboard.writer.SummaryWriter,
     return avg_val_loss, avg_val_acc
 
 
-def k_fold_cross_validation(config: configs.Config, dir_path: str) -> None:
+def k_fold_cross_validation(config: configs.Config, dir_path: str, clear_dir=True) -> None:
+    # Clean up
+    if clear_dir:
+        shutil.rmtree(dir_path, ignore_errors=True)
+
     # Initialize logging
     summary_dir = os.path.join(dir_path, "summary")
     summary_writer = tensorboard.SummaryWriter(summary_dir)
@@ -123,7 +128,8 @@ def k_fold_cross_validation(config: configs.Config, dir_path: str) -> None:
         # Train and validate
         for epoch in range(1, config.runner.num_epochs + 1):
             sleep(0.25)
-            print(f"Fold {fold}/{config.runner.num_folds}, Epoch {epoch}/{config.runner.num_epochs}:")
+            run_name = os.path.basename(dir_path)
+            print(f"Run {run_name}, Fold {fold}/{config.runner.num_folds}, Epoch {epoch}/{config.runner.num_epochs}:")
             sleep(0.25)
 
             train(fold_writer, train_loader, epoch, config)
