@@ -1,4 +1,5 @@
 import os
+import random
 from time import sleep
 
 import numpy as np
@@ -92,6 +93,11 @@ def k_fold_cross_validation(config: configs.Config, dir_path: str) -> None:
     config.to_tensorboard(summary_writer)
     config.to_file(dir_path)
 
+    # Set seeds
+    torch.manual_seed(config.runner.seed)
+    random.seed(config.runner.seed)
+    np.random.seed(config.runner.seed)
+
     # Move model to device
     config.model.to(config.runner.device)
 
@@ -170,6 +176,7 @@ def create_config():
     runner = runners.CustomKFoldRunner(num_folds=5,
                                        num_epochs=20,
                                        batch_size=64,
+                                       seed=777,
                                        device=torch.device("cpu")
                                        )
 
@@ -208,13 +215,21 @@ def create_config():
 
 if __name__ == "__main__":
     # Create config
-    # new_config = create_config()
+    new_config = create_config()
+
+    # Set output directory
+    output_dir = os.path.join(constants.ROOT, r"models\testing")
+
+    # Start training
+    k_fold_cross_validation(new_config, output_dir)
+
+    # Load config from previous run
     loaded_config = configs.Config.from_file(
         r"C:\Users\E8J0G0K\Documents\Repos\ml-template\models\testing\config.pt"
     )
 
-    # Set output directory
-    output_dir = os.path.join(constants.ROOT, r"models\testing2")
+    # Set new output directory
+    output_dir = os.path.join(constants.ROOT, r"models\testing-reloaded")
 
     # Start training
     k_fold_cross_validation(loaded_config, output_dir)
