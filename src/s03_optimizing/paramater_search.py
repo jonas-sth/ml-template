@@ -1,6 +1,5 @@
 import os
 
-import numpy as np
 import torch
 import torchmetrics
 from torchvision.transforms import transforms
@@ -48,8 +47,7 @@ def complete_search():
     # Define variations for the model (entirely different models)
     possible_models = [
         models.CustomConvNetSequential(),
-        models.CustomConvNet(),
-        models.CustomConvNetSequential2()
+        models.CustomConvNet()
     ]
 
     # Define variations for the weight initialization (different methods)
