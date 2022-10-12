@@ -1,12 +1,8 @@
-import json
 import os
 
 import cv2
 import pandas as pd
 from torch.utils.data import Dataset
-from torchvision import transforms
-
-from src.s00_utils import constants
 
 
 class CustomImageDataset(Dataset):
@@ -32,15 +28,3 @@ class CustomImageDataset(Dataset):
         if self.transform:
             image = self.transform(image)
         return image, label
-
-
-# Define custom datasets
-MNIST_Dataset = CustomImageDataset(
-    image_dir=os.path.join(constants.ROOT, r"data\d01_raw\mnist\train"),
-    label_path=os.path.join(constants.ROOT, r"data\d01_raw\mnist\train\labels.csv"),
-    transform=transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Grayscale(),
-        transforms.Normalize(0.5, 0.2),
-    ])
-)
