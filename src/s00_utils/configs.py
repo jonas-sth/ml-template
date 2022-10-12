@@ -2,6 +2,7 @@ import os
 import dataclasses
 
 import torch
+from torch.utils import tensorboard
 
 from src.s01_data import datasets
 from src.s03_modelling import models
@@ -37,7 +38,7 @@ class Config:
         output_path = os.path.join(dir_path, "config.pt")
         torch.save(self, output_path)
 
-    def to_tensorboard(self, writer) -> None:
+    def to_tensorboard(self, writer: tensorboard.writer.SummaryWriter) -> None:
         """
         Writes the config as formatted Markdown text to the given tensorboard writer.
         """
@@ -47,6 +48,10 @@ class Config:
         writer.add_text(tag="Optimizer", text_string=_markdown(str(self.optimizer)))
         writer.add_text(tag="Loss Function", text_string=_markdown(str(self.loss_function)))
         writer.add_text(tag="Accuracy Function", text_string=_markdown(str(self.accuracy_function)))
+
+        # Get one sample of the data with the right dimensions and use it to log the graph to tensorboard
+        data_sample = self.data[0][0][None, :]
+        writer.add_graph(self.model, data_sample)
 
 
 def _markdown(string: str):
