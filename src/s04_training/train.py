@@ -161,10 +161,10 @@ def k_fold_cross_validation(config: configs.Config, dir_path: str, clear_dir=Tru
     avg = np.mean(accuracy_per_fold)
     std = np.std(accuracy_per_fold)
 
-    result = f"| Parameter        | Value     |  \n" \
-             f"| ---------------- | --------- |  \n" \
-             f"| Average Accuracy | {avg:.5f} |  \n" \
-             f"| Std. Deviation   | {std:.5f} |  \n"
+    result = f"| Parameter          | Value     |  \n" \
+             f"| ------------------ | --------- |  \n" \
+             f"| Average Accuracy   | {avg:.5f} |  \n" \
+             f"| Standard Deviation | {std:.5f} |  \n"
 
     for fold in range(config.runner.num_folds):
         result += f"| Accuracy of Fold {fold} | {accuracy_per_fold[fold - 1]:.5f} |  \n"
@@ -176,20 +176,13 @@ def k_fold_cross_validation(config: configs.Config, dir_path: str, clear_dir=Tru
 
 
 if __name__ == "__main__":
-    # Create config for first run
-    config_a = configs.create_config()
+    # Create config or load one
+    train_config = configs.create_config()
+    # train_config = configs.load_config(r"C:\Users\E8J0G0K\Documents\Repos\ml-template\models\run_a\config.pt")
 
     # Set output directory
-    output_a = os.path.join(constants.ROOT, r"models\run_a")
+    output_dir = os.path.join(constants.ROOT, r"models\run")
 
     # Start training
-    k_fold_cross_validation(config_a, output_a)
+    k_fold_cross_validation(train_config, output_dir)
 
-    # Load config from previous run
-    config_b = configs.load_config(r"C:\Users\E8J0G0K\Documents\Repos\ml-template\models\run_a\config.pt")
-
-    # Set new output directory
-    output_b = os.path.join(constants.ROOT, r"models\run_b")
-
-    # Start training
-    k_fold_cross_validation(config_b, output_b)
