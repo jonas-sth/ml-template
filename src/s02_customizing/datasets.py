@@ -41,7 +41,7 @@ class CustomImageDataset(Dataset):
 
     def __repr__(self):
         if self.transform is not None:
-            formatted_transform = str(self.transform).replace("\t", "  ")[:-1] + "  )"  # or two spaces after every \n?
+            formatted_transform = str(self.transform).replace("\n", "\n  ")
         else:
             formatted_transform = "None"
 
