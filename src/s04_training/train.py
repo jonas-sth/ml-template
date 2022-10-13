@@ -1,3 +1,5 @@
+"""This module contains the training in form of a k-fold-cross-validation."""
+
 import os
 import random
 import shutil
@@ -5,19 +7,16 @@ from time import sleep
 
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
-from torch.utils import tensorboard
+from torch.utils.data import DataLoader, SubsetRandomSampler
 from sklearn.model_selection import KFold
+from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from src.s00_utils import constants
-from src.s02_training import configs
+from src.s03_prototyping import configs
 
 
-def train(writer: tensorboard.writer.SummaryWriter,
-          train_loader: torch.utils.data.dataloader.DataLoader,
-          epoch: int,
-          config: configs.Config) -> None:
+def train(writer: SummaryWriter, train_loader: DataLoader, epoch: int, config: configs.Config) -> None:
     """
     Trains one epoch.
     """
@@ -45,10 +44,7 @@ def train(writer: tensorboard.writer.SummaryWriter,
         writer.add_scalar("Accuracy/Train", acc.item(), (batch_idx + epoch * len(train_loader)))
 
 
-def validate(writer: tensorboard.writer.SummaryWriter,
-             val_loader: torch.utils.data.dataloader.DataLoader,
-             epoch: int,
-             config: configs.Config) -> (float, float):
+def validate(writer: SummaryWriter, val_loader: DataLoader, epoch: int, config: configs.Config) -> (float, float):
     """
     Validates one epoch.
     """
@@ -84,13 +80,16 @@ def validate(writer: tensorboard.writer.SummaryWriter,
 
 
 def k_fold_cross_validation(config: configs.Config, dir_path: str, clear_dir=True) -> None:
+    """
+    Executes training and validating a model on k different splits.
+    """
     # Clean up
     if clear_dir:
         shutil.rmtree(dir_path, ignore_errors=True)
 
     # Initialize logging
     summary_dir = os.path.join(dir_path, "summary")
-    summary_writer = tensorboard.SummaryWriter(summary_dir)
+    summary_writer = SummaryWriter(summary_dir)
     config.to_tensorboard(summary_writer)
     config.to_file(dir_path)
 
@@ -109,17 +108,17 @@ def k_fold_cross_validation(config: configs.Config, dir_path: str, clear_dir=Tru
     for fold, (train_idx, val_idx) in enumerate(k_fold.split(config.data), start=1):
         # Initialize logging of fold
         fold_dir = os.path.join(dir_path, f"fold_{fold}")
-        fold_writer = tensorboard.SummaryWriter(fold_dir)
+        fold_writer = SummaryWriter(fold_dir)
 
         # Initialize data loader
-        train_subset = torch.utils.data.SubsetRandomSampler(train_idx)
-        val_subset = torch.utils.data.SubsetRandomSampler(val_idx)
-        train_loader = torch.utils.data.DataLoader(dataset=config.data,
-                                                   batch_size=config.runner.batch_size,
-                                                   sampler=train_subset)
-        val_loader = torch.utils.data.DataLoader(dataset=config.data,
-                                                 batch_size=config.runner.batch_size,
-                                                 sampler=val_subset)
+        train_subset = SubsetRandomSampler(train_idx)
+        val_subset = SubsetRandomSampler(val_idx)
+        train_loader = DataLoader(dataset=config.data,
+                                  batch_size=config.runner.batch_size,
+                                  sampler=train_subset)
+        val_loader = DataLoader(dataset=config.data,
+                                batch_size=config.runner.batch_size,
+                                sampler=val_subset)
 
         # Reset model weights and scores
         config.model.apply(config.weight_init)
@@ -127,11 +126,13 @@ def k_fold_cross_validation(config: configs.Config, dir_path: str, clear_dir=Tru
 
         # Train and validate
         for epoch in range(1, config.runner.num_epochs + 1):
+            # Print status to console (sleep needed to avoid conflict with tqdm progress bars)
             sleep(0.25)
             run_name = os.path.basename(dir_path)
             print(f"Run {run_name}, Fold {fold}/{config.runner.num_folds}, Epoch {epoch}/{config.runner.num_epochs}:")
             sleep(0.25)
 
+            # Execute training and validating
             train(fold_writer, train_loader, epoch, config)
             val_loss, val_acc = validate(fold_writer, val_loader, epoch, config)
 
@@ -156,14 +157,14 @@ def k_fold_cross_validation(config: configs.Config, dir_path: str, clear_dir=Tru
         # Close logging of this fold
         fold_writer.close()
 
-    # Report the result
+    # Report the result as Markdown table to tensorboard
     result = f"| Parameter        | Value                          |  \n" \
              f"| ---------------- | ------------------------------ |  \n" \
              f"| Average Accuracy | {np.mean(scores_per_fold):.5f} |  \n" \
              f"| Number of Folds  | {config.runner.num_folds}             |  \n"
 
     for fold in range(config.runner.num_folds):
-        result += f"| Accuracy of Fold {fold} | {scores_per_fold[fold-1]:.5f} |  \n"
+        result += f"| Accuracy of Fold {fold} | {scores_per_fold[fold - 1]:.5f} |  \n"
 
     summary_writer.add_text(tag="Result", text_string=result)
     summary_writer.close()

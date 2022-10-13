@@ -1,3 +1,5 @@
+"""This module contains the config logic which combines all custom components that are used within the training."""
+
 import inspect
 import os
 import dataclasses
@@ -10,11 +12,16 @@ from torch.utils import tensorboard
 from torchvision.transforms import transforms
 
 from src.s00_utils import constants
-from src.s01_custom_classes import datasets, models, weights, runners
+from src.s02_customizing import datasets, models, weight_inits, runners
 
 
 @dataclasses.dataclass
 class Config:
+    """
+    Combines all custom components that are used within the training.
+    A config can be saved to a file and loaded again.
+    A config can be logged to a tensorboard for better visualization.
+    """
     runner: runners.CustomKFoldRunner
     data: torch.utils.data.Dataset
     model: torch.nn.Module
@@ -39,6 +46,7 @@ class Config:
         """
         Writes the config as formatted Markdown text to the given tensorboard writer.
         """
+        # Add every component of this config with a unique tag to tensorboard as Markdown text.
         writer.add_text(tag="Runner", text_string=_markdown(str(self.runner)))
         writer.add_text(tag="Dataset", text_string=_markdown(str(self.data)))
         writer.add_text(tag="Model", text_string=_markdown(str(self.model)))
@@ -71,6 +79,7 @@ def load_config(file_path):
 def create_config():
     """
     Creates a config object with the given parameters.
+    Use this method to create new configurations.
     """
     # Initialize runner
     runner = runners.CustomKFoldRunner(num_folds=5,
@@ -90,10 +99,10 @@ def create_config():
                                        )
 
     # Initialize model
-    model = models.CustomConvNetSequential()  # models.CustomConvNet()
+    model = models.CustomConvNetSequential()
 
     # Set weight initialization
-    weight_init = weights.xavier_weight_init
+    weight_init = weight_inits.xavier_weight_init
 
     # Initialize optimizer
     optimizer = torch.optim.SGD(model.parameters(), lr=0.02, momentum=0.001)

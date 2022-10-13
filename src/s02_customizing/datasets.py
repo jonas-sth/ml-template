@@ -1,3 +1,5 @@
+"""This module contains custom dataset classes within are used for the training."""
+
 import os
 
 import cv2
@@ -7,9 +9,17 @@ from torch.utils.data import Dataset
 
 class CustomImageDataset(Dataset):
     """
-    Custom Dataset to be used with torch Dataloader.
-    Expects the label.csv to contain a file_name and label for each image,
-    where the image is stored at image_dir/file_name.
+    Custom Dataset for images to be used with torch Dataloader.
+    Expects the data to be structured in the following way:
+        - image_dir
+            - img1
+            - img2
+            - ...
+            - labels.csv
+    The labels.csv file should be structured in the following way:
+        img1_file_name, img1_label
+        img2_file_name, img2_label
+        ...
     """
     def __init__(self, image_dir, label_path, transform=None):
         self.image_dir = image_dir
@@ -31,7 +41,7 @@ class CustomImageDataset(Dataset):
 
     def __repr__(self):
         if self.transform is not None:
-            formatted_transform = str(self.transform).replace("\t", "  ")[:-1] + "  )"
+            formatted_transform = str(self.transform).replace("\t", "  ")[:-1] + "  )"  # or two spaces after every \n?
         else:
             formatted_transform = "None"
 

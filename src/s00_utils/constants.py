@@ -1,3 +1,5 @@
+"""This module contains constants that are used throughout this project."""
+
 from pathlib import Path
 
 

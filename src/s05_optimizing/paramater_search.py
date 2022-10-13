@@ -1,3 +1,5 @@
+"""This module contains methods to compare different configs used within the training."""
+
 import os
 
 import torch
@@ -5,11 +7,15 @@ import torchmetrics
 from torchvision.transforms import transforms
 
 from src.s00_utils import constants
-from src.s01_custom_classes import runners, datasets, models, weights
-from src.s02_training import configs, train
+from src.s02_customizing import runners, datasets, models, weight_inits
+from src.s03_prototyping import configs
+from src.s04_training import train
 
 
 def complete_search():
+    """
+    An example where every part of the config is varied and all combinations are compared.
+    """
 
     # Define variations for the runner (mainly batch size)
     possible_runners = []
@@ -52,7 +58,7 @@ def complete_search():
 
     # Define variations for the weight initialization (different methods)
     possible_weight_inits = [
-        weights.xavier_weight_init
+        weight_inits.xavier_weight_init
     ]
 
     # Define variations for the optimizer (different optimizer or different parameters)

@@ -1,3 +1,5 @@
+"""This module contains custom runners that are used within the training."""
+
 import dataclasses
 
 import torch
@@ -5,6 +7,9 @@ import torch
 
 @dataclasses.dataclass
 class CustomKFoldRunner:
+    """
+    This class holds parameters to control the k-fold-cross-validation.
+    """
     num_folds: int
     num_epochs: int
     batch_size: int

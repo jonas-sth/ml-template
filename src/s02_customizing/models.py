@@ -1,3 +1,5 @@
+"""This module contains custom models that are used within the training."""
+
 from torch import nn
 import torch.nn.functional as F
 
