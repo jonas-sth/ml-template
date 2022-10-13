@@ -79,7 +79,7 @@ def validate(writer: SummaryWriter, val_loader: DataLoader, epoch: int, config: 
     return avg_val_loss, avg_val_acc
 
 
-def k_fold_cross_validation(config: configs.Config, dir_path: str, clear_dir=True) -> None:
+def k_fold_cross_validation(config: configs.Config, dir_path: str, clear_dir=True) -> (float, float):
     """
     Executes training and validating a model on k different splits.
     """
@@ -103,7 +103,7 @@ def k_fold_cross_validation(config: configs.Config, dir_path: str, clear_dir=Tru
 
     # Initialize folds and scores
     k_fold = KFold(n_splits=config.runner.num_folds, shuffle=True)
-    scores_per_fold = []
+    accuracy_per_fold = []
 
     for fold, (train_idx, val_idx) in enumerate(k_fold.split(config.data), start=1):
         # Initialize logging of fold
@@ -146,7 +146,7 @@ def k_fold_cross_validation(config: configs.Config, dir_path: str, clear_dir=Tru
                            model_path)
 
         # Save the best score of this fold
-        scores_per_fold.append(best_val_acc)
+        accuracy_per_fold.append(best_val_acc)
 
         # Save the last model
         model_path = os.path.join(fold_dir, "last_model.pth")
@@ -158,16 +158,21 @@ def k_fold_cross_validation(config: configs.Config, dir_path: str, clear_dir=Tru
         fold_writer.close()
 
     # Report the result as Markdown table to tensorboard
-    result = f"| Parameter        | Value                          |  \n" \
-             f"| ---------------- | ------------------------------ |  \n" \
-             f"| Average Accuracy | {np.mean(scores_per_fold):.5f} |  \n" \
-             f"| Number of Folds  | {config.runner.num_folds}             |  \n"
+    avg = np.mean(accuracy_per_fold)
+    std = np.std(accuracy_per_fold)
+
+    result = f"| Parameter        | Value     |  \n" \
+             f"| ---------------- | --------- |  \n" \
+             f"| Average Accuracy | {avg:.5f} |  \n" \
+             f"| Std. Deviation   | {std:.5f} |  \n"
 
     for fold in range(config.runner.num_folds):
-        result += f"| Accuracy of Fold {fold} | {scores_per_fold[fold - 1]:.5f} |  \n"
+        result += f"| Accuracy of Fold {fold} | {accuracy_per_fold[fold - 1]:.5f} |  \n"
 
     summary_writer.add_text(tag="Result", text_string=result)
     summary_writer.close()
+
+    return avg, std
 
 
 if __name__ == "__main__":
