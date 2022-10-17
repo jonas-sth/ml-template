@@ -48,6 +48,17 @@ class CustomKFoldTrainer:
         self.accuracy_function = accuracy_function
         self.seed = seed if seed is not None else int(time.time())
 
+    @classmethod
+    def from_file(cls, file_path):
+        """
+        Loads the object from the given file path via torch and returns it, if it is of this class.
+        """
+        trainer = torch.load(file_path)
+        if isinstance(trainer, cls):
+            return trainer
+        else:
+            return None
+
     def to_file(self, dir_path):
         """
         Saves this object with its parameters in the given directory via torch.

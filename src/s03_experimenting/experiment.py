@@ -57,10 +57,27 @@ def run(dir_path):
     trainer.k_fold_cross_validation(dir_path)
 
 
-if __name__ == "__main__":
-    # Set output directory
-    output_dir = os.path.join(constants.ROOT, r"models\exp")
+def rerun(file_path, dir_path):
+    """
+    Reruns an experiment with the config from the given file path.
+    """
+    # Load config
+    trainer = trainers.CustomKFoldTrainer.from_file(file_path)
 
     # Run experiment
-    run(output_dir)
+    trainer.k_fold_cross_validation(dir_path)
+
+
+if __name__ == "__main__":
+    # # Set output directory
+    # output_dir = os.path.join(constants.ROOT, r"models\exp")
+    #
+    # # Run experiment
+    # run(output_dir)
+
+    # Test to rerun experiment
+    config_path = os.path.join(constants.ROOT, r"models\exp\config.pt")
+    new_output_dir = os.path.join(constants.ROOT, r"models\exp2")
+    rerun(config_path, new_output_dir)
+
 
