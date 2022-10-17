@@ -195,8 +195,8 @@ class CustomKFoldTrainer:
 
                 # Update learning rate
                 if self.lr_scheduler is not None:
-                    self.lr_scheduler.step()
                     fold_writer.add_scalar("Learning rate", self.optimizer.param_groups[0]["lr"], epoch)
+                    self.lr_scheduler.step()
 
                 # Track the best performance, and save the model's state
                 if val_acc > best_val_acc:
