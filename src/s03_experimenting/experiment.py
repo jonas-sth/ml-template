@@ -25,7 +25,7 @@ def run(dir_path):
                                        )
 
     # Initialize model
-    model = models.CustomConvNetSequential()
+    model = models.CustomConvNet()
 
     # Set weight initialization
     weight_init = weight_inits.xavier_weight_init
