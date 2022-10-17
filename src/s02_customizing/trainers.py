@@ -34,6 +34,7 @@ class CustomKFoldTrainer:
                  loss_function: torch.nn.Module,
                  accuracy_function: torch.nn.Module,
                  weight_init: Callable = None,
+                 learning_rate_scheduler=None,  # :torch.optim.lr_scheduler._LRScheduler
                  seed: int = None):
 
         self.num_folds = num_folds
@@ -44,6 +45,7 @@ class CustomKFoldTrainer:
         self.model = model
         self.weight_init = weight_init
         self.optimizer = optimizer
+        self.learning_rate_scheduler = learning_rate_scheduler
         self.loss_function = loss_function
         self.accuracy_function = accuracy_function
         self.seed = seed if seed is not None else int(time.time())
@@ -143,7 +145,7 @@ class CustomKFoldTrainer:
 
             # Reset model, optimizer and score
             self.model.apply(basics.weight_reset)
-            self.optimizer = self.optimizer.__class__(self.model.parameters(), **self.optimizer.defaults)
+            self.optimizer.param_groups[0]["lr"] = self.optimizer.defaults["lr"]
             best_val_acc = 0
 
             # Initialize weights
@@ -163,6 +165,11 @@ class CustomKFoldTrainer:
                 # Execute training and validating
                 self._train(fold_writer, train_loader, epoch)
                 val_loss, val_acc = self._validate(fold_writer, val_loader, epoch)
+
+                # Update learning rate
+                if self.learning_rate_scheduler is not None:
+                    self.learning_rate_scheduler.step()
+                    fold_writer.add_scalar("Learning rate", self.optimizer.param_groups[0]["lr"], epoch)
 
                 # Track the best performance, and save the model's state
                 if val_acc > best_val_acc:
