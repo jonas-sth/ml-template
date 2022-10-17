@@ -3,127 +3,76 @@
 import os
 import shutil
 
-import numpy as np
 import torch
-import torchmetrics
 from torch.utils.tensorboard import SummaryWriter
-from torchvision.transforms import transforms
 
 from src.s00_utils import constants
-from src.s02_customizing import runners, datasets, models, weight_inits
-from src.s03_prototyping import configs
-from src.s04_training import train
+from src.s02_customizing import datasets, models, weight_inits, trainers
 
 
-def complete_search(dir_path, clear_dir=True):
-    """
-    An example where every part of the config is varied and all combinations are compared.
-    """
+def tune_sgd_optimizer(file_path, dir_path, clear_dir=True):
     # Clean up
     if clear_dir:
         shutil.rmtree(dir_path, ignore_errors=True)
 
-    # Define variations for the runner (mainly batch size)
-    possible_runners = []
-    for num_folds in [2]:
-        for num_epochs in [5]:
-            for batch_size in [64]:
-                for seed in [777]:
-                    possible_runners.append(runners.CustomKFoldRunner(num_folds=num_folds,
-                                                                      num_epochs=num_epochs,
-                                                                      batch_size=batch_size,
-                                                                      seed=seed,
-                                                                      device=torch.device("cpu")
-                                                                      )
-                                            )
+    # Set parameters to test
+    possible_learning_rates = [0.1, 0.01, 0.001]
+    possible_moments = [0.0, 0.01, 0.001]
+    possible_weight_decays = [0.0, 0.1, 0.001]
 
-    # Define variations for the dataset (different data and label combinations or applied transforms)
-    possible_datasets = [
-        # datasets.CustomImageDataset(image_dir=os.path.join(constants.ROOT, r"data\d01_raw\mnist\train"),
-        #                             label_path=os.path.join(constants.ROOT, r"data\d01_raw\mnist\train\labels.csv"),
-        #                             transform=transforms.Compose([transforms.ToTensor(),
-        #                                                           transforms.Grayscale(),
-        #                                                           transforms.Normalize(0.5, 0.2),
-        #                                                           transforms.GaussianBlur(3)]
-        #                                                          )
-        #                             ),
-        datasets.CustomImageDataset(image_dir=os.path.join(constants.ROOT, r"data\d01_raw\mnist\train"),
-                                    label_path=os.path.join(constants.ROOT, r"data\d01_raw\mnist\train\labels.csv"),
-                                    transform=transforms.Compose([transforms.ToTensor(),
-                                                                  transforms.Grayscale(),
-                                                                  transforms.Normalize(0.5, 0.2)]
-                                                                 )
-                                    )
-    ]
+    total_possibilities = len(possible_learning_rates) * len(possible_moments) * len(possible_weight_decays)
 
-    # Define variations for the model (entirely different models)
-    possible_models = [
-        models.CustomConvNetSequential(),
-        # models.CustomConvNet()
-    ]
+    # Load trainer
+    trainer = trainers.CustomKFoldTrainer.from_file(file_path)
 
-    # Define variations for the weight initialization (different methods)
-    possible_weight_inits = [
-        weight_inits.xavier_weight_init
-    ]
+    # Initialize logging
+    comparison_writer = SummaryWriter(dir_path)
 
-    # Define variations for the optimizer (different optimizer or different parameters)
-    # Combine as tuple with model
-    possible_optimizers = []
-    for lr in [0.1, 0.01, 0.001]:
-        for momentum in [0.001]:
-            for model in possible_models:
-                possible_optimizers.append((model, torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)))
+    # Iterate over possible hyper parameters
+    i = 1
+    for lr in possible_learning_rates:
+        for momentum in possible_moments:
+            for decay in possible_weight_decays:
+                # Initialize optimizer
+                optimizer = torch.optim.SGD(params=trainer.model.parameters(),
+                                            lr=lr,
+                                            momentum=momentum,
+                                            weight_decay=decay)
 
-    # Define variations for the loss function
-    possible_loss_functions = [
-        torch.nn.CrossEntropyLoss()
-    ]
+                # Replace optimizer in trainer
+                trainer.optimizer = optimizer
 
-    # Define variations for the accuracy function
-    possible_accuracy_function = [
-        torchmetrics.Accuracy()
-    ]
+                # Set output directory
+                exp_dir = os.path.join(dir_path, f"exp_{i}")
 
-    # Train all combinations
-    i = 0
-    all_scores = []
-    for runner in possible_runners:
-        for data in possible_datasets:
-            for weight_init in possible_weight_inits:
-                for model, optimizer in possible_optimizers:
-                    for loss_function in possible_loss_functions:
-                        for accuracy_function in possible_accuracy_function:
-                            config = configs.Config(runner=runner,
-                                                    data=data,
-                                                    model=model,
-                                                    weight_init=weight_init,
-                                                    optimizer=optimizer,
-                                                    loss_function=loss_function,
-                                                    accuracy_function=accuracy_function
-                                                    )
-                            run_dir = os.path.join(dir_path, f"run_{i}")
-                            avg, std = train.k_fold_cross_validation(config, run_dir)
-                            all_scores.append(avg)
-                            i += 1
+                # Run training
+                avg, std = trainer.k_fold_cross_validation(exp_dir, f"{i}/{total_possibilities}")
 
-    best_run = np.argmax(all_scores)
+                # Log to tensorboard
+                comparison_writer.add_hparams(
+                    hparam_dict={
+                        "learning rate": lr,
+                        "momentum": momentum,
+                        "weight decay": decay
+                    },
+                    metric_dict={
+                        "accuracy": avg
+                    },
+                    hparam_domain_discrete={
+                        "learning rate": possible_learning_rates,
+                        "momentum": possible_moments,
+                        "weight decay": possible_weight_decays
+                    },
+                    run_name=f"run_{i}"
+                )
 
-    # Log results to tensorboard
-    comparison_dir = os.path.join(dir_path, "comparison")
-    comparison_writer = SummaryWriter(comparison_dir)
+                # Increase counter
+                i += 1
 
-    result = f"| Parameter        | Value          |  \n" \
-             f"| ---------------- | -------------- |  \n" \
-             f"| Best run         | run_{best_run} |  \n" \
-
-    for run in range(i):
-        result += f"| Score of run {run} | {all_scores[run]:.5f} |  \n"
-
-    comparison_writer.add_text(tag="Comparison", text_string=result)
     comparison_writer.close()
 
 
 if __name__ == "__main__":
+    config_path = os.path.join(constants.ROOT, r"models\exp\config.pt")
     output_dir = os.path.join(constants.ROOT, r"models\hyper_search")
-    complete_search(output_dir)
+    tune_sgd_optimizer(config_path, output_dir)
