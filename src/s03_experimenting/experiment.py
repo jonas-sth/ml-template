@@ -34,7 +34,7 @@ def run(dir_path, clear_dir=True):
     optimizer = torch.optim.SGD(model.parameters(), lr=0.02, momentum=0.001)
 
     # Initialize learning rate scheduler
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.1)
 
     # Initialize loss function
     loss_function = torch.nn.CrossEntropyLoss()
@@ -45,14 +45,14 @@ def run(dir_path, clear_dir=True):
     # Initialize trainer
     trainer = trainers.CustomKFoldTrainer(
         num_folds=2,
-        num_epochs=30,
+        num_epochs=15,
         batch_size=64,
         device=torch.device("cpu"),
         data=data,
         model=model,
         weight_init=weight_init,
         optimizer=optimizer,
-        learning_rate_scheduler=scheduler,
+        lr_scheduler=lr_scheduler,
         loss_function=loss_function,
         accuracy_function=accuracy_function,
     )

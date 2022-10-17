@@ -34,7 +34,7 @@ class CustomKFoldTrainer:
                  loss_function: torch.nn.Module,
                  accuracy_function: torch.nn.Module,
                  weight_init: Callable = None,
-                 learning_rate_scheduler=None,  # :torch.optim.lr_scheduler._LRScheduler
+                 lr_scheduler=None,  # :torch.optim.lr_scheduler._LRScheduler
                  seed: int = None):
 
         self.num_folds = num_folds
@@ -45,7 +45,7 @@ class CustomKFoldTrainer:
         self.model = model
         self.weight_init = weight_init
         self.optimizer = optimizer
-        self.learning_rate_scheduler = learning_rate_scheduler
+        self.lr_scheduler = lr_scheduler
         self.loss_function = loss_function
         self.accuracy_function = accuracy_function
         self.seed = seed if seed is not None else int(time.time())
@@ -107,9 +107,9 @@ class CustomKFoldTrainer:
         """
         Returns the learning rate scheduler of this trainer as string. Used for cleaner logging to tensorboard.
         """
-        if self.learning_rate_scheduler is not None:
-            text = f"{str(self.learning_rate_scheduler.__class__.__name__)}(\n"
-            for key, value in self.learning_rate_scheduler.state_dict().items():
+        if self.lr_scheduler is not None:
+            text = f"{str(self.lr_scheduler.__class__.__name__)}(\n"
+            for key, value in self.lr_scheduler.state_dict().items():
                 if not key.startswith("_"):
                     text += f"  {key}: {value}, \n"
             text += ")"
@@ -158,9 +158,12 @@ class CustomKFoldTrainer:
                                     batch_size=self.batch_size,
                                     sampler=val_subset)
 
-            # Reset model, optimizer and score
+            # Reset model, optimizer, learning rate scheduler and score
             self.model.apply(basics.weight_reset)
-            self.optimizer.param_groups[0]["lr"] = self.optimizer.defaults["lr"]
+            self.optimizer = self.optimizer.__class__(self.model.parameters(), **self.optimizer.defaults)
+            if self.lr_scheduler is not None:
+                self.lr_scheduler = self.lr_scheduler.__class__(self.optimizer,
+                                                                **basics.get_lr_scheduler_params(self.lr_scheduler))
             best_val_acc = 0
 
             # Initialize weights
@@ -182,8 +185,8 @@ class CustomKFoldTrainer:
                 val_loss, val_acc = self._validate(fold_writer, val_loader, epoch)
 
                 # Update learning rate
-                if self.learning_rate_scheduler is not None:
-                    self.learning_rate_scheduler.step()
+                if self.lr_scheduler is not None:
+                    self.lr_scheduler.step()
                     fold_writer.add_scalar("Learning rate", self.optimizer.param_groups[0]["lr"], epoch)
 
                 # Track the best performance, and save the model's state

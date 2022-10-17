@@ -17,3 +17,21 @@ def weight_reset(m):
     reset_parameters = getattr(m, "reset_parameters", None)
     if callable(reset_parameters):
         m.reset_parameters()
+
+
+def get_lr_scheduler_params(lr_scheduler):
+    """
+    Returns a dictionary with the parameters of the given learning rate scheduler without the running parameters.
+    """
+    # Get all parameters
+    params = lr_scheduler.state_dict()
+
+    # Remove the running parameters
+    params.pop("base_lrs")
+    params.pop("last_epoch")
+    params.pop("_step_count")
+    params.pop("verbose")
+    params.pop("_get_lr_called_within_step")
+    params.pop("_last_lr")
+
+    return params
