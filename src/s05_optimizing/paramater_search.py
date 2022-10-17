@@ -18,12 +18,9 @@ def tune_sgd_optimizer(file_path, dir_path, clear_dir=True):
     # Set parameters to test
     possible_learning_rates = [0.1, 0.01, 0.001]
     possible_moments = [0.0, 0.01, 0.001]
-    possible_weight_decays = [0.0, 0.1, 0.001]
+    possible_weight_decays = [0.0, 0.01, 0.001]
 
     total_possibilities = len(possible_learning_rates) * len(possible_moments) * len(possible_weight_decays)
-
-    # Load trainer
-    trainer = trainers.CustomKFoldTrainer.from_file(file_path)
 
     # Initialize logging
     comparison_writer = SummaryWriter(dir_path)
@@ -33,20 +30,20 @@ def tune_sgd_optimizer(file_path, dir_path, clear_dir=True):
     for lr in possible_learning_rates:
         for momentum in possible_moments:
             for decay in possible_weight_decays:
-                # Initialize optimizer
-                optimizer = torch.optim.SGD(params=trainer.model.parameters(),
-                                            lr=lr,
-                                            momentum=momentum,
-                                            weight_decay=decay)
+                # Load trainer
+                trainer = trainers.CustomKFoldTrainer.from_file(file_path)
 
-                # Replace optimizer in trainer
-                trainer.optimizer = optimizer
+                # Replace optimizer
+                trainer.optimizer = torch.optim.SGD(params=trainer.model.parameters(),
+                                                    lr=lr,
+                                                    momentum=momentum,
+                                                    weight_decay=decay)
 
                 # Set output directory
                 exp_dir = os.path.join(dir_path, f"exp_{i}")
 
                 # Run training
-                avg, std = trainer.k_fold_cross_validation(exp_dir, f"{i}/{total_possibilities}")
+                avg, std = trainer.k_fold_cross_validation(exp_dir, run_info=f"{i}/{total_possibilities}")
 
                 # Log to tensorboard
                 comparison_writer.add_hparams(
