@@ -100,7 +100,7 @@ class CustomKFoldTrainer:
                f"  device: {self.device}\n" \
                f")"
 
-    def k_fold_cross_validation(self, dir_path: str, clear_dir=True) -> (float, float):
+    def k_fold_cross_validation(self, dir_path: str, clear_dir=True, run_info=None) -> (float, float):
         """
         Executes training and validating a model on k different splits.
         """
@@ -149,9 +149,10 @@ class CustomKFoldTrainer:
             for epoch in range(1, self.num_epochs + 1):
                 # Print status to console (sleep needed to avoid conflict with tqdm progress bars)
                 time.sleep(0.25)
-                run_name = os.path.basename(dir_path)
-                print(
-                    f"Run {run_name}, Fold {fold}/{self.num_folds}, Epoch {epoch}/{self.num_epochs}:")
+                if run_info is not None:
+                    print(f"Run {run_info}, Fold {fold}/{self.num_folds}, Epoch {epoch}/{self.num_epochs}:")
+                else:
+                    print(f"Fold {fold}/{self.num_folds}, Epoch {epoch}/{self.num_epochs}:")
                 time.sleep(0.25)
 
                 # Execute training and validating
