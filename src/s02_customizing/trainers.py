@@ -30,10 +30,10 @@ class CustomKFoldTrainer:
                  device: torch.device,
                  data: torch.utils.data.Dataset,
                  model: torch.nn.Module,
-                 weight_init: Callable,
                  optimizer: torch.optim.Optimizer,
                  loss_function: torch.nn.Module,
                  accuracy_function: torch.nn.Module,
+                 weight_init: Callable = None,
                  seed: int = None):
 
         self.num_folds = num_folds
@@ -141,9 +141,14 @@ class CustomKFoldTrainer:
                                     batch_size=self.batch_size,
                                     sampler=val_subset)
 
-            # Reset model weights and scores
-            self.model.apply(self.weight_init)
+            # Reset model, optimizer and score
+            self.model.apply(basics.weight_reset)
+            self.optimizer = self.optimizer.__class__(self.model.parameters(), **self.optimizer.defaults)
             best_val_acc = 0
+
+            # Initialize weights
+            if self.weight_init is not None:
+                self.model.apply(self.weight_init)
 
             # Train and validate
             for epoch in range(1, self.num_epochs + 1):
