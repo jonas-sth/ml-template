@@ -10,7 +10,7 @@ from src.s00_utils import constants
 from src.s02_customizing import datasets, models, weight_inits, trainers
 
 
-def run(dir_path):
+def run(dir_path, clear_dir=True):
     """
     Runs an experiment with the specified parameters.
     Use this method to create new configurations.
@@ -54,10 +54,10 @@ def run(dir_path):
     )
 
     # Run experiment
-    trainer.k_fold_cross_validation(dir_path)
+    trainer.k_fold_cross_validation(dir_path, clear_dir)
 
 
-def rerun(file_path, dir_path):
+def rerun(file_path, dir_path, clear_dir=True):
     """
     Reruns an experiment with the config from the given file path.
     """
@@ -65,19 +65,19 @@ def rerun(file_path, dir_path):
     trainer = trainers.CustomKFoldTrainer.from_file(file_path)
 
     # Run experiment
-    trainer.k_fold_cross_validation(dir_path)
+    trainer.k_fold_cross_validation(dir_path, clear_dir)
 
 
 if __name__ == "__main__":
-    # # Set output directory
-    # output_dir = os.path.join(constants.ROOT, r"models\exp")
-    #
-    # # Run experiment
-    # run(output_dir)
+    # Set output directory
+    output_dir = os.path.join(constants.ROOT, r"models\exp")
+
+    # Run experiment
+    run(output_dir)
 
     # Test to rerun experiment
-    config_path = os.path.join(constants.ROOT, r"models\exp\config.pt")
-    new_output_dir = os.path.join(constants.ROOT, r"models\exp2")
-    rerun(config_path, new_output_dir)
+    # config_path = os.path.join(constants.ROOT, r"models\exp\config.pt")
+    # new_output_dir = os.path.join(constants.ROOT, r"models\exp2")
+    # rerun(config_path, new_output_dir)
 
 
