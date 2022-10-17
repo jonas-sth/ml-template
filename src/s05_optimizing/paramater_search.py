@@ -17,8 +17,8 @@ def tune_sgd_optimizer(file_path, dir_path, clear_dir=True):
 
     # Set parameters to test
     possible_learning_rates = [0.1, 0.01, 0.001]
-    possible_moments = [0.0, 0.01, 0.001]
-    possible_weight_decays = [0.0, 0.01, 0.001]
+    possible_moments = [0.1, 0.01, 0.001]
+    possible_weight_decays = [0.1, 0.01, 0.001]
 
     total_possibilities = len(possible_learning_rates) * len(possible_moments) * len(possible_weight_decays)
 
