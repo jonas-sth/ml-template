@@ -78,10 +78,11 @@ class CustomKFoldTrainer:
         Writes the parameters of this trainer as formatted Markdown text to the given tensorboard writer.
         """
         # Add every component of this config with a unique tag to tensorboard as Markdown text.
-        writer.add_text(tag="Base Parameters", text_string=basics.markdown(self._get_base_parameters()))
+        writer.add_text(tag="Base Parameters", text_string=basics.markdown(self._get_base_parameters_string()))
         writer.add_text(tag="Dataset", text_string=basics.markdown(str(self.data)))
         writer.add_text(tag="Model", text_string=basics.markdown(str(self.model)))
         writer.add_text(tag="Weight Initialization", text_string=basics.markdown(inspect.getsource(self.weight_init)))
+        writer.add_text(tag="Learning Rate Scheduler", text_string=basics.markdown(self._get_lr_scheduler_string()))
         writer.add_text(tag="Optimizer", text_string=basics.markdown(str(self.optimizer)))
         writer.add_text(tag="Loss Function", text_string=basics.markdown(str(self.loss_function)))
         writer.add_text(tag="Accuracy Function", text_string=basics.markdown(str(self.accuracy_function)))
@@ -90,7 +91,7 @@ class CustomKFoldTrainer:
         data_sample = self.data[0][0][None, :]
         writer.add_graph(self.model, data_sample)
 
-    def _get_base_parameters(self):
+    def _get_base_parameters_string(self):
         """
         Returns the basic parameters of this trainer as string. Used for cleaner logging to tensorboard.
         """
@@ -101,6 +102,20 @@ class CustomKFoldTrainer:
                f"  seed: {self.seed}\n" \
                f"  device: {self.device}\n" \
                f")"
+
+    def _get_lr_scheduler_string(self):
+        """
+        Returns the learning rate scheduler of this trainer as string. Used for cleaner logging to tensorboard.
+        """
+        if self.learning_rate_scheduler is not None:
+            text = f"{str(self.learning_rate_scheduler.__class__.__name__)}(\n"
+            for key, value in self.learning_rate_scheduler.state_dict().items():
+                if not key.startswith("_"):
+                    text += f"  {key}: {value}, \n"
+            text += ")"
+            return text
+        else:
+            return None
 
     def k_fold_cross_validation(self, dir_path: str, clear_dir=True, run_info=None) -> (float, float):
         """
