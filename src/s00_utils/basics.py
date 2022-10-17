@@ -5,7 +5,10 @@ def markdown(string: str):
     """
     Formats linebreaks and indentation to Markdown format.
     """
-    formatted_string = string.replace(" ", "&nbsp;&nbsp;").replace("\n", "<br />")
+    if string is not None:
+        formatted_string = string.replace(" ", "&nbsp;&nbsp;").replace("\n", "<br />")
+    else:
+        formatted_string = "None"
     return formatted_string
 
 

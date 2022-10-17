@@ -50,9 +50,9 @@ def run(dir_path, clear_dir=True):
         device=torch.device("cpu"),
         data=data,
         model=model,
-        weight_init=weight_init,
+        # weight_init=weight_init,
         optimizer=optimizer,
-        lr_scheduler=lr_scheduler,
+        # lr_scheduler=lr_scheduler,
         loss_function=loss_function,
         accuracy_function=accuracy_function,
     )
