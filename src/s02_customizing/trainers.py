@@ -160,6 +160,14 @@ class CustomKFoldTrainer:
                 self.model.apply(self.weight_init)
 
             # Set up profiler
+            """
+            Attention:  The tensorboard plugin: torch-tb-profiler doesn't work natively on Windows.
+                        A dirty workaround to fix the invalid escapes in the saved jsons is the following:
+                        Go to /path_to_python_installation/Lib/site-packages/torch_tb_profiler/profiler/data.py
+                        and change the loading of the json file in line 127 (might change depending on version) to: 
+                        trace_json = json.loads(data.replace(b"\\", b"\\\\"), strict=False).
+                        More at: https://github.com/pytorch/kineto/issues/336
+            """
             prof = torch.profiler.profile(
                 schedule=torch.profiler.schedule(wait=1, warmup=1, active=3, repeat=2),
                 on_trace_ready=torch.profiler.tensorboard_trace_handler(fold_dir),
