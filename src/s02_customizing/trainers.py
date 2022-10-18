@@ -1,6 +1,5 @@
 """This module contains custom trainers implementing training routines."""
 
-import inspect
 import os
 import random
 import shutil
@@ -77,13 +76,17 @@ class CustomKFoldTrainer:
         """
         Writes the parameters of this trainer as formatted Markdown text to the given tensorboard writer.
         """
+        # Handle optional config parameters
+        weight_init_string = basics.get_method_as_string(self.weight_init) if self.weight_init is not None else "None"
+        lr_scheduler_string = basics.get_class_as_string(self.lr_scheduler) if self.lr_scheduler is not None else "None"
+
         # Add every component of this config with a unique tag to tensorboard as Markdown text.
         writer.add_text(tag="Base Parameters", text_string=basics.markdown(self._get_base_parameters_string()))
         writer.add_text(tag="Dataset", text_string=basics.markdown(str(self.data)))
         writer.add_text(tag="Model", text_string=basics.markdown(str(self.model)))
-        writer.add_text(tag="Weight Initialization", text_string=basics.markdown(self._get_weight_init_string()))
-        writer.add_text(tag="Learning Rate Scheduler", text_string=basics.markdown(self._get_lr_scheduler_string()))
+        writer.add_text(tag="Weight Initialization", text_string=basics.markdown(weight_init_string))
         writer.add_text(tag="Optimizer", text_string=basics.markdown(str(self.optimizer)))
+        writer.add_text(tag="Learning Rate Scheduler", text_string=basics.markdown(lr_scheduler_string))
         writer.add_text(tag="Loss Function", text_string=basics.markdown(str(self.loss_function)))
         writer.add_text(tag="Accuracy Function", text_string=basics.markdown(str(self.accuracy_function)))
 
@@ -102,29 +105,6 @@ class CustomKFoldTrainer:
                f"  seed: {self.seed}\n" \
                f"  device: {self.device}\n" \
                f")"
-
-    def _get_lr_scheduler_string(self):
-        """
-        Returns the learning rate scheduler of this trainer as string. Used for cleaner logging to tensorboard.
-        """
-        if self.lr_scheduler is not None:
-            text = f"{str(self.lr_scheduler.__class__.__name__)}(\n"
-            for key, value in self.lr_scheduler.state_dict().items():
-                if not key.startswith("_"):
-                    text += f"  {key}: {value}, \n"
-            text += ")"
-            return text
-        else:
-            return None
-
-    def _get_weight_init_string(self):
-        """
-        Returns the weight init of this trainer as string. Used for cleaner logging to tensorboard.
-        """
-        if self.weight_init is not None:
-            return inspect.getsource(self.weight_init)
-        else:
-            return None
 
     def k_fold_cross_validation(self, dir_path: str, clear_dir=True, run_info=None) -> (float, float):
         """
