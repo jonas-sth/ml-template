@@ -243,6 +243,11 @@ class CustomKFoldTrainer:
             writer.add_scalar("Loss/Train", loss.item(), (batch_idx + epoch * len(train_loader)))
             writer.add_scalar("Accuracy/Train", acc.item(), (batch_idx + epoch * len(train_loader)))
 
+            # Log images one time to tensorboard
+            if epoch == 1 and batch_idx == 0:
+                writer.add_images(tag="First Training Batch", img_tensor=data, global_step=0)
+                writer.add_image(tag="One Image", img_tensor=data[0], global_step=0)
+
     def _validate(self, writer: SummaryWriter, val_loader: DataLoader, epoch: int) -> (float, float):
         """
         Validates one epoch.
