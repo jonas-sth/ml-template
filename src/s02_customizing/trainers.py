@@ -159,6 +159,14 @@ class CustomKFoldTrainer:
             if self.weight_init is not None:
                 self.model.apply(self.weight_init)
 
+            # Set up profiler
+            prof = torch.profiler.profile(
+                schedule=torch.profiler.schedule(wait=1, warmup=1, active=3, repeat=2),
+                on_trace_ready=torch.profiler.tensorboard_trace_handler(fold_dir),
+                record_shapes=True,
+                with_stack=True)
+            prof.start()
+
             # Train and validate
             for epoch in range(1, self.num_epochs + 1):
                 # Print status to console (sleep needed to avoid conflict with tqdm progress bars)
@@ -170,7 +178,7 @@ class CustomKFoldTrainer:
                 time.sleep(0.25)
 
                 # Execute training and validating
-                self._train(fold_writer, train_loader, epoch)
+                self._train(fold_writer, train_loader, epoch, prof)
                 val_loss, val_acc = self._validate(fold_writer, val_loader, epoch)
 
                 # Update learning rate
@@ -198,6 +206,7 @@ class CustomKFoldTrainer:
 
             # Close logging of this fold
             fold_writer.close()
+            prof.stop()
 
         # Report the result as Markdown table to tensorboard
         avg = np.mean(accuracy_per_fold)
@@ -216,7 +225,7 @@ class CustomKFoldTrainer:
 
         return avg, std
 
-    def _train(self, writer: SummaryWriter, train_loader: DataLoader, epoch: int) -> None:
+    def _train(self, writer: SummaryWriter, train_loader: DataLoader, epoch: int, prof) -> None:
         """
         Trains one epoch.
         """
@@ -234,6 +243,7 @@ class CustomKFoldTrainer:
             loss = self.loss_function(output, target)
             loss.backward()
             self.optimizer.step()
+            prof.step()
 
             # Calculate accuracy
             acc_function = self.accuracy_function.to(self.device)
