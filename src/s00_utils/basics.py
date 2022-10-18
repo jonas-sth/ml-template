@@ -41,10 +41,9 @@ def get_lr_scheduler_params(lr_scheduler):
     return params
 
 
-def get_class_as_string(obj):
+def get_state_as_string(obj):
     """
-    Returns a string representation of the given class object.
-    If the object has a state dict, parses its parameters.
+    Returns a string representation of the given object with its state dict.
     """
     text = f"{str(obj.__class__.__name__)}("
 

@@ -78,7 +78,7 @@ class CustomKFoldTrainer:
         """
         # Handle optional config parameters
         weight_init_string = basics.get_method_as_string(self.weight_init) if self.weight_init is not None else "None"
-        lr_scheduler_string = basics.get_class_as_string(self.lr_scheduler) if self.lr_scheduler is not None else "None"
+        lr_scheduler_string = basics.get_state_as_string(self.lr_scheduler) if self.lr_scheduler is not None else "None"
 
         # Add every component of this config with a unique tag to tensorboard as Markdown text.
         writer.add_text(tag="Base Parameters", text_string=basics.markdown(self._get_base_parameters_string()))
