@@ -106,7 +106,7 @@ class CustomKFoldTrainer:
                f"  device: {self.device}\n" \
                f")"
 
-    def k_fold_cross_validation(self, dir_path: str, clear_dir=True, run_info=None) -> (float, float):
+    def k_fold_cross_validation(self, dir_path: str, clear_dir=True) -> (float, float):
         """
         Executes training and validating a model on k different splits.
         """
@@ -132,7 +132,8 @@ class CustomKFoldTrainer:
         k_fold = KFold(n_splits=self.num_folds, shuffle=True)
         accuracy_per_fold = []
 
-        for fold, (train_idx, val_idx) in enumerate(k_fold.split(self.data), start=1):
+        for fold, (train_idx, val_idx) in enumerate(tqdm(k_fold.split(self.data), total=self.num_folds,
+                                                         desc="Folds", leave=False), start=1):
             # Initialize logging of fold
             fold_dir = os.path.join(dir_path, f"fold_{fold}")
             fold_writer = SummaryWriter(fold_dir)
@@ -160,14 +161,7 @@ class CustomKFoldTrainer:
                 self.model.apply(self.weight_init)
 
             # Train and validate
-            for epoch in range(1, self.num_epochs + 1):
-                # Print status to console (sleep needed to avoid conflict with tqdm progress bars)
-                time.sleep(0.25)
-                if run_info is not None:
-                    print(f"Run {run_info}, Fold {fold}/{self.num_folds}, Epoch {epoch}/{self.num_epochs}:")
-                else:
-                    print(f"Fold {fold}/{self.num_folds}, Epoch {epoch}/{self.num_epochs}:")
-                time.sleep(0.25)
+            for epoch in tqdm(range(1, self.num_epochs + 1), desc="Epochs", leave=False):
 
                 # Execute training and validating
                 self._train(fold_writer, train_loader, epoch)
@@ -221,7 +215,7 @@ class CustomKFoldTrainer:
         Trains one epoch.
         """
         self.model.train()
-        for batch_idx, (data, target) in enumerate(tqdm(train_loader, desc="Training")):
+        for batch_idx, (data, target) in enumerate(tqdm(train_loader, desc="Training", leave=False)):
             # Send data to GPU
             data = data.to(self.device)
             target = target.to(self.device)
@@ -256,7 +250,7 @@ class CustomKFoldTrainer:
         val_loss = 0
         val_acc = 0
         with torch.no_grad():
-            for batch_idx, (data, target) in enumerate(tqdm(val_loader, desc="Validating")):
+            for batch_idx, (data, target) in enumerate(tqdm(val_loader, desc="Validating", leave=False)):
                 # Send data to GPU
                 data = data.to(self.device)
                 target = target.to(self.device)
