@@ -149,7 +149,11 @@ class CustomKFoldTrainer:
                                     sampler=val_subset)
 
             # Reset model, optimizer, learning rate scheduler and score
-            self.model.apply(basics.weight_reset)
+            self.model.apply(basics.weight_reset)  # remove? overridden by weight init and would destroy pretraining
+            # reload model state dict from disc maybe?
+            # self.model.load_state_dict()
+            # self.optimizer.state_dict
+            # self.lr_scheduler.state_dict
             self.optimizer = self.optimizer.__class__(self.model.parameters(), **self.optimizer.defaults)
             if self.lr_scheduler is not None:
                 self.lr_scheduler = self.lr_scheduler.__class__(self.optimizer,
